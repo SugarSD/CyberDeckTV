@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <link rel="stylesheet" type="text/css" href="index.css">
+        <script type="module">
+            import { createApp, reactive } from 'https://unpkg.com/petite-vue?module'
+            import config from './config.js' // Import config.js as config
+            
+
+            const weatherAPI = `https://api.openweathermap.org/data/2.5/weather?lat=${config.latitude}&lon=${config.longitude}&units=metric&appid=${config.weather_api_key}`
+
+            const refreshVariables = reactive({
+                time: null,
+                weather: "N/A",
+                spotify: {},
+                rTime() {
+                    this.time = new Date().toLocaleTimeString()
+                },
+                rWeather() {
+                    fetch(weatherAPI)
+                    .then(response => response.json())
+                    .then(data => {
+                        this.weather = data
+                    })
+                },
+                rSpotify() {
+                    fetch('http://localhost:3000/spotify', {
+                        method: 'GET',
+                        headers: {
+                            'Access-Control-Allow-Origin': 'no-cors',
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        this.spotify = data
+                        //Fucky but works
+                        //console.clear(0);
+                    })
+                },
+                
+            })
+            createApp({
+            // exposed to all expressions
+            refreshVariables,
+            }).mount('#app')
+
+
+            var weatherTimer = 5 * 60 * 1000
+
+            refreshVariables.rWeather()
+            refreshVariables.rTime()
+            
+
+            while (true) {
+                // Wait 1 second
+                await new Promise(resolve => setTimeout(resolve, 1000))
+                
+                // Update time
+                refreshVariables.rTime()
+
+                // Update spotify
+                refreshVariables.rSpotify()
+
+                // Update timer and weather as needed
+                if (weatherTimer <= 0) {
+                    refreshVariables.rWeather()
+                    weatherTimer = 5 * 60 * 1000
+                } else {
+                    weatherTimer -= 1000
+                }
+            }
+
+        </script>
+        <title>CyberDeckTV</title>
+    </head>
+    <body>
+        <div id="app" v-scope>
+            <div id="top-row">
+                <div id="time">
+                    <h2>{{ refreshVariables.time }}</h2>
+                </div>
+                <div id="weather">
+                    <img :src="`http://openweathermap.org/img/wn/${refreshVariables.weather.weather[0].icon}@2x.png`" />
+                    <h2>{{ refreshVariables.weather.weather[0].main }}</h2>
+                </div>
+            </div>
+        <div id="bottom-row">
+            <div id="spotify">
+                <img :src="refreshVariables.spotify.data.item.album.images[0].url" />
+                <input type="range" min="0" :max="refreshVariables.spotify.data.item.duration_ms" :value="refreshVariables.spotify.data.progress_ms"></input>
+                <h2>{{ refreshVariables.spotify.data.item.name }}</h2>
+                <h2>By: {{ refreshVariables.spotify.data.item.artists[0].name }}</h2>
+            </div>
+        </div>
+    </body>
+</html>
